@@ -76,16 +76,78 @@ class Nonogram(object):
                 # file / directory already exists
                 pass
         i = 0
-        self.data_matrix[3][6] = 'X'
-        self.data_matrix[6][7] = '.'
+        # self.data_matrix[3][6] = 'filled'
+        # self.data_matrix[6][7] = 'empty'
+        self.current_position = {
+            'type': 'col',
+            'pos': 0
+        }
+        self.updated = True
+        j = 0
         while not self.is_solved:
-            self.save(os.path.join(directory, '{0}.png'.format(i)))
             self.solve_step()
-            i += 1
-            break
+            if self.updated:
+                self.save(os.path.join(directory, '{0} ({1}).png'.format(i, j)))
+                i += 1
+                self.updated = False
+            self.current_position['pos'] += 1
+            if self.current_position['type'] == 'col':
+                if self.current_position['pos'] >= self.col_number:
+                    self.current_position['type'] = 'row'
+                    self.current_position['pos'] = 0
+            elif self.current_position['type'] == 'row':
+                if self.current_position['pos'] >= self.row_number:
+                    self.current_position['type'] = 'col'
+                    self.current_position['pos'] = 0
+                    j += 1
+            if j > 100:
+                self.is_solved = True
 
     def solve_step(self):
-        pass
+        if self.current_position['type'] == 'col':
+            data = self.cols[self.current_position['pos']]
+        elif self.current_position['type'] == 'row':
+            data = self.rows[self.current_position['pos']]
+        pos = 0
+        for i, value in enumerate(data):
+            for j in range(value):
+                x, y = self.current_position['pos'], pos
+                if self.current_position['type'] == 'row':
+                    x, y = y, x
+                if self.data_matrix[x][y] not in ['filled', 'empty']:
+                    self.data_matrix[x][y] = i
+                pos += 1
+            # if self.current_position['type'] == 'col':
+            #     self.data_matrix[self.current_position['pos']][pos] = 'empty'
+            # elif self.current_position['type'] == 'row':
+            #     self.data_matrix[pos][self.current_position['pos']] = 'empty'
+            # while self.data_matrix[x][y] not in ['', 'empty']:
+            pos += 1
+                # if self.current_position['type'] == 'row':
+                #     x += 1
+                # elif self.current_position['type'] == 'col':
+                #     y += 1
+        if self.current_position['type'] == 'col':
+            pos = self.row_number - 1
+        elif self.current_position['type'] == 'row':
+            pos = self.col_number - 1
+        for i, value in reversed(list(enumerate(data))):
+            for j in range(value):
+                x, y = self.current_position['pos'], pos
+                if self.current_position['type'] == 'row':
+                    x, y = y, x
+                if self.data_matrix[x][y] == i:
+                    self.data_matrix[x][y] = 'filled'
+                    self.updated = True
+                pos -= 1
+            pos -= 1
+        self.clean_matrix()
+
+    def clean_matrix(self):
+        for x, col in enumerate(self.data_matrix):
+            for y, value in enumerate(col):
+                if value not in ['filled', 'empty']:
+                    self.data_matrix[x][y] = ''
 
     def draw_board(self, img):
         """Draws fields inside self.data_matrix. Used for solving the board"""
@@ -94,20 +156,19 @@ class Nonogram(object):
             for y, value in enumerate(col):
                 x_pixel = x * self.pixel_size + self.col_padding * self.pixel_size + self.image_padding
                 y_pixel = y * self.pixel_size + self.row_padding * self.pixel_size + self.image_padding
-                if value == 'X':
+                if value == 'filled':
                     padding = self.pixel_padding
                     coordinates = (x_pixel + padding, y_pixel + padding,
                                    x_pixel + self.pixel_size - padding,
                                    y_pixel + self.pixel_size - padding)
                     draw.rectangle(coordinates, fill=self.font_color)
-                elif value == '.':
-                    padding = 0
+                elif value == 'empty':
+                    padding = self.pixel_padding
                     coordinates = (x_pixel + padding, y_pixel + padding,
                                    x_pixel + self.pixel_size - padding,
                                    y_pixel + self.pixel_size - padding)
-                    print coordinates
                     draw.line(coordinates, fill=self.font_color)
-                    coordinates = (coordinates[0], coordinates[3], coordinates[1], coordinates[2])
+                    coordinates = (coordinates[0], coordinates[3], coordinates[2], coordinates[1])
                     draw.line(coordinates, fill=self.font_color)
 
     def draw_numbers(self, img):
