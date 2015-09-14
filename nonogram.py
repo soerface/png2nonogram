@@ -1,3 +1,4 @@
+import argparse
 import sys
 from PIL import Image, ImageDraw, ImageFont
 
@@ -6,7 +7,6 @@ class Nonogram(object):
     def __init__(self, filepath):
         img = Image.open(filepath).convert('RGB')
         self.col_number, self.row_number = img.size
-
         self.cols, self.rows = self.count_pixels(img)
         self.row_padding = max(map(len, self.cols))
         self.col_padding = max(map(len, self.rows))
@@ -25,27 +25,27 @@ class Nonogram(object):
 
     @property
     def pixel_size(self):
-        return self._pixel_size * self.scale
+        return int(self._pixel_size * self.scale)
 
     @property
     def font_size(self):
-        return self._font_size * self.scale
+        return int(self._font_size * self.scale)
 
     @property
     def font_padding_x(self):
-        return self._font_padding_x * self.scale
+        return int(self._font_padding_x * self.scale)
 
     @property
     def font_padding_y(self):
-        return self._font_padding_y * self.scale
+        return int(self._font_padding_y * self.scale)
 
     @property
     def grid_width(self):
-        return self._grid_width * self.scale
+        return int(self._grid_width * self.scale)
 
     @property
     def grid_bold_width(self):
-        return self._grid_width * self.scale * 2
+        return int(self._grid_width * self.scale * 2)
 
     def save(self, filepath):
         width, height = self.col_number + self.col_padding, self.row_number + self.row_padding
@@ -148,12 +148,34 @@ class Nonogram(object):
         r, g, b = img.getpixel((x, y))
         return False if (r + g + b) / 3 > 127 else True
 
+def hexcolor(value):
+    if value.startswith('#'):
+        value = value[1:]
+    valid_chars = '0123456789abcdefABCDEF'
+    for c in value:
+        if c not in valid_chars:
+            raise ValueError('Invalid color, color must be provided in hex')
+    if len(value) != 3 and len(value) != 6:
+        raise ValueError('Invalid color, must be exactly 3 or 6 characters long')
+    return '#{0}'.format(value)
+
 if __name__ == '__main__':
-    nonogram = Nonogram(sys.argv[1])
-    if len(sys.argv) > 2:
-        nonogram.scale = int(sys.argv[2])
-    nonogram.background_color = '#fff'
-    nonogram.grid_bold_color = '#000'
-    nonogram.grid_color = '#888'
-    nonogram.font_color = '#000'
-    nonogram.save('out.png')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filepath', help='Path to the image that should be nonofied')
+    parser.add_argument('output', help='Path for the generated nonogram')
+    parser.add_argument('-s', '--scale', default=1, help='Scaling of the output image', type=float)
+    parser.add_argument('-bc', '--background-color', default='#fff', help='Background color', type=hexcolor)
+    parser.add_argument('-fc', '--font-color', default='#000', help='Font color', type=hexcolor)
+    parser.add_argument('-gc', '--grid-color', default='#888', help='Grid color', type=hexcolor)
+    parser.add_argument('-gbc', '--grid-bold-color', default='#000', help='Grid bold color', type=hexcolor)
+    args = parser.parse_args()
+    try:
+        nonogram = Nonogram(args.filepath)
+    except IOError, e:
+        sys.exit('Error: {0}'.format(e.strerror))
+    nonogram.scale = args.scale
+    nonogram.background_color = args.background_color
+    nonogram.grid_bold_color = args.grid_bold_color
+    nonogram.grid_color = args.grid_color
+    nonogram.font_color = args.font_color
+    nonogram.save(args.output)
