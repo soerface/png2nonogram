@@ -12,7 +12,7 @@ class Nonogram(object):
     def __init__(self, filepath):
         img = Image.open(filepath).convert('RGB')
         self.col_number, self.row_number = img.size
-        self.data_matrix = np.zeros(shape=(self.col_number, self.row_number), dtype=bool)
+        self.data_matrix = np.zeros(shape=(self.col_number, self.row_number), dtype=int)
         print(len(self.data_matrix), len(self.data_matrix[0]))
         self.cols, self.rows = self.count_pixels(img)
         self.row_padding = max(map(len, self.cols))
@@ -84,13 +84,13 @@ class Nonogram(object):
             for y, value in enumerate(col):
                 x_pixel = x * self.pixel_size + self.col_padding * self.pixel_size + self.image_padding
                 y_pixel = y * self.pixel_size + self.row_padding * self.pixel_size + self.image_padding
-                if value:
+                if value > 0:
                     padding = self.pixel_padding
                     coordinates = (x_pixel + padding, y_pixel + padding,
                                    x_pixel + self.pixel_size - padding,
                                    y_pixel + self.pixel_size - padding)
                     draw.rectangle(coordinates, fill=self.font_color)
-                else:
+                elif value < 0:
                     padding = self.pixel_padding
                     coordinates = (x_pixel + padding, y_pixel + padding,
                                    x_pixel + self.pixel_size - padding,
