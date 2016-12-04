@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
 import argparse
 import os
 import sys
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -8,7 +10,7 @@ class Nonogram(object):
     def __init__(self, filepath):
         img = Image.open(filepath).convert('RGB')
         self.col_number, self.row_number = img.size
-        self.data_matrix = [['' for y in range(self.row_number)] for x in range(self.col_number)]
+        self.data_matrix = np.zeros(shape=(self.row_number, self.col_number), dtype=bool)
         print(len(self.data_matrix), len(self.data_matrix[0]))
         self.cols, self.rows = self.count_pixels(img)
         self.row_padding = max(map(len, self.cols))
@@ -56,7 +58,7 @@ class Nonogram(object):
     def grid_bold_width(self):
         return int(self._grid_width * self.scale * 2)
 
-    def save(self, filepath):
+    def save(self, filepath, solve : bool):
         width, height = self.col_number + self.col_padding, self.row_number + self.row_padding
         width *= self.pixel_size
         height *= self.pixel_size
@@ -65,104 +67,30 @@ class Nonogram(object):
         out = Image.new('RGB', (width, height), self.background_color)
         self.draw_grid(out)
         self.draw_numbers(out)
-        self.draw_board(out)
+        if solve:
+            self.solve()
+            self.draw_board(out)
         out.save(filepath)
 
-    def solve(self, directory):
-        try:
-            os.makedirs(directory)
-        except OSError, e:
-            if e.errno == 17:
-                # file / directory already exists
-                pass
-        i = 0
-        # self.data_matrix[3][6] = 'filled'
-        # self.data_matrix[6][7] = 'empty'
-        self.current_position = {
-            'type': 'col',
-            'pos': 0
-        }
-        self.updated = True
-        j = 0
-        while not self.is_solved:
-            self.solve_step()
-            if self.updated:
-                self.save(os.path.join(directory, '{0} ({1}).png'.format(i, j)))
-                i += 1
-                self.updated = False
-            self.current_position['pos'] += 1
-            if self.current_position['type'] == 'col':
-                if self.current_position['pos'] >= self.col_number:
-                    self.current_position['type'] = 'row'
-                    self.current_position['pos'] = 0
-            elif self.current_position['type'] == 'row':
-                if self.current_position['pos'] >= self.row_number:
-                    self.current_position['type'] = 'col'
-                    self.current_position['pos'] = 0
-                    j += 1
-            if j > 100:
-                self.is_solved = True
+    def solve(self) -> None:
+        print(self.cols)
+        print(self.rows)
+        pass
 
-    def solve_step(self):
-        if self.current_position['type'] == 'col':
-            data = self.cols[self.current_position['pos']]
-        elif self.current_position['type'] == 'row':
-            data = self.rows[self.current_position['pos']]
-        pos = 0
-        for i, value in enumerate(data):
-            for j in range(value):
-                x, y = self.current_position['pos'], pos
-                if self.current_position['type'] == 'row':
-                    x, y = y, x
-                if self.data_matrix[x][y] not in ['filled', 'empty']:
-                    self.data_matrix[x][y] = i
-                pos += 1
-            # if self.current_position['type'] == 'col':
-            #     self.data_matrix[self.current_position['pos']][pos] = 'empty'
-            # elif self.current_position['type'] == 'row':
-            #     self.data_matrix[pos][self.current_position['pos']] = 'empty'
-            # while self.data_matrix[x][y] not in ['', 'empty']:
-            pos += 1
-                # if self.current_position['type'] == 'row':
-                #     x += 1
-                # elif self.current_position['type'] == 'col':
-                #     y += 1
-        if self.current_position['type'] == 'col':
-            pos = self.row_number - 1
-        elif self.current_position['type'] == 'row':
-            pos = self.col_number - 1
-        for i, value in reversed(list(enumerate(data))):
-            for j in range(value):
-                x, y = self.current_position['pos'], pos
-                if self.current_position['type'] == 'row':
-                    x, y = y, x
-                if self.data_matrix[x][y] == i:
-                    self.data_matrix[x][y] = 'filled'
-                    self.updated = True
-                pos -= 1
-            pos -= 1
-        self.clean_matrix()
-
-    def clean_matrix(self):
-        for x, col in enumerate(self.data_matrix):
-            for y, value in enumerate(col):
-                if value not in ['filled', 'empty']:
-                    self.data_matrix[x][y] = ''
-
-    def draw_board(self, img):
+    def draw_board(self, img) -> None:
         """Draws fields inside self.data_matrix. Used for solving the board"""
         draw = ImageDraw.Draw(img)
         for x, col in enumerate(self.data_matrix):
             for y, value in enumerate(col):
                 x_pixel = x * self.pixel_size + self.col_padding * self.pixel_size + self.image_padding
                 y_pixel = y * self.pixel_size + self.row_padding * self.pixel_size + self.image_padding
-                if value == 'filled':
+                if value:
                     padding = self.pixel_padding
                     coordinates = (x_pixel + padding, y_pixel + padding,
                                    x_pixel + self.pixel_size - padding,
                                    y_pixel + self.pixel_size - padding)
                     draw.rectangle(coordinates, fill=self.font_color)
-                elif value == 'empty':
+                else:
                     padding = self.pixel_padding
                     coordinates = (x_pixel + padding, y_pixel + padding,
                                    x_pixel + self.pixel_size - padding,
@@ -171,7 +99,7 @@ class Nonogram(object):
                     coordinates = (coordinates[0], coordinates[3], coordinates[2], coordinates[1])
                     draw.line(coordinates, fill=self.font_color)
 
-    def draw_numbers(self, img):
+    def draw_numbers(self, img) -> None:
         draw = ImageDraw.Draw(img)
         font = ImageFont.truetype(self.font, size=self.font_size)
         x = self.col_padding * self.pixel_size + self.image_padding + self.font_padding_x
@@ -230,33 +158,23 @@ class Nonogram(object):
     def count_pixels(self, img):
         width, height = img.size
 
-        result = {}
-        rows = []
-        counter = 0
-        for y in range(0, height):
-            row = []
-            for x in range(0, width):
-                value = self.value_of(img, x, y)
-                if value:
-                    counter += 1
-                if not value or x == width - 1:
-                    if counter != 0:
-                        row.append(counter)
-                    counter = 0
-            rows.append(row)
-        cols = []
-        counter = 0
-        for x in range(0, width):
-            col = []
-            for y in range(0, height):
-                value = self.value_of(img, x, y)
-                if value:
-                    counter += 1
-                if not value or y == height - 1:
-                    if counter != 0:
-                        col.append(counter)
-                    counter = 0
-            cols.append(col)
+        def count(count_axis, secondary_axis, get_pixel_value):
+            result = []
+            counter = 0
+            for i in range(secondary_axis):
+                row = []
+                for j in range(count_axis):
+                    value = get_pixel_value(i, j)
+                    if value:
+                        counter += 1
+                    if not value or j == count_axis - 1:
+                        if counter != 0:
+                            row.append(counter)
+                        counter = 0
+                result.append(row)
+            return result
+        rows = count(height, width, lambda y, x: self.value_of(img, x, y))
+        cols = count(width, height, lambda x, y: self.value_of(img, x, y))
         return cols, rows
 
     def value_of(self, img, x, y):
@@ -264,7 +182,7 @@ class Nonogram(object):
         return False if (r + g + b) / 3 > 127 else True
 
 
-def hexcolor(value):
+def hexcolor(value) -> str:
     if value.startswith('#'):
         value = value[1:]
     valid_chars = '0123456789abcdefABCDEF'
@@ -290,7 +208,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     try:
         nonogram = Nonogram(args.filepath)
-    except IOError, e:
+    except IOError as e:
         sys.exit('Error: {0}'.format(e.strerror))
     nonogram.scale = args.scale
     nonogram.background_color = args.background_color
@@ -298,7 +216,4 @@ if __name__ == '__main__':
     nonogram.grid_color = args.grid_color
     nonogram.font_color = args.font_color
     nonogram._pixel_padding = args.pixel_padding
-    if args.solve:
-        nonogram.solve(args.output)
-    else:
-        nonogram.save(args.output)
+    nonogram.save(args.output, args.solve)
