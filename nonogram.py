@@ -12,7 +12,7 @@ class Nonogram(object):
     def __init__(self, filepath):
         img = Image.open(filepath).convert('RGB')
         self.col_number, self.row_number = img.size
-        self.data_matrix = np.zeros(shape=(self.row_number, self.col_number), dtype=bool)
+        self.data_matrix = np.zeros(shape=(self.col_number, self.row_number), dtype=bool)
         print(len(self.data_matrix), len(self.data_matrix[0]))
         self.cols, self.rows = self.count_pixels(img)
         self.row_padding = max(map(len, self.cols))
@@ -173,8 +173,8 @@ class Nonogram(object):
                         counter = 0
                 result.append(row)
             return result
-        rows = count(height, width, lambda y, x: self.value_of(img, x, y))
-        cols = count(width, height, lambda x, y: self.value_of(img, x, y))
+        cols = count(height, width, lambda x, y: self.value_of(img, x, y))
+        rows = count(width, height, lambda y, x: self.value_of(img, x, y))
         return cols, rows
 
     def value_of(self, img, x, y):
