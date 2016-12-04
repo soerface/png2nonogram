@@ -5,6 +5,8 @@ import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+from solver import solve
+
 
 class Nonogram(object):
     def __init__(self, filepath):
@@ -73,9 +75,7 @@ class Nonogram(object):
         out.save(filepath)
 
     def solve(self) -> None:
-        print(self.cols)
-        print(self.rows)
-        pass
+        solve(self.rows, self.cols, self.data_matrix)
 
     def draw_board(self, img) -> None:
         """Draws fields inside self.data_matrix. Used for solving the board"""
