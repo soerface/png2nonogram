@@ -5,7 +5,7 @@ import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from solver import solve
+from satsolver import solve
 
 
 class Nonogram(object):
