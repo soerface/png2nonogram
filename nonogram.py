@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import argparse
-import os
+import json
 import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -13,7 +13,6 @@ class Nonogram(object):
         img = Image.open(filepath).convert('RGB')
         self.col_number, self.row_number = img.size
         self.data_matrix = np.zeros(shape=(self.col_number, self.row_number), dtype=int)
-        print(len(self.data_matrix), len(self.data_matrix[0]))
         self.cols, self.rows = self.count_pixels(img)
         self.row_padding = max(map(len, self.cols))
         self.col_padding = max(map(len, self.rows))
@@ -60,7 +59,7 @@ class Nonogram(object):
     def grid_bold_width(self):
         return int(self._grid_width * self.scale * 2)
 
-    def save(self, filepath, solve : bool):
+    def save(self, filepath, solve: bool):
         width, height = self.col_number + self.col_padding, self.row_number + self.row_padding
         width *= self.pixel_size
         height *= self.pixel_size
@@ -73,6 +72,10 @@ class Nonogram(object):
             self.solve()
             self.draw_board(out)
         out.save(filepath)
+
+    def save_json(self, filepath):
+        with open(filepath, 'w') as f:
+            json.dump([self.rows, self.cols], f)
 
     def solve(self) -> None:
         solve(self.rows, self.cols, self.data_matrix)
@@ -173,6 +176,7 @@ class Nonogram(object):
                         counter = 0
                 result.append(row)
             return result
+
         cols = count(height, width, lambda x, y: self.value_of(img, x, y))
         rows = count(width, height, lambda y, x: self.value_of(img, x, y))
         return cols, rows
@@ -205,6 +209,7 @@ if __name__ == '__main__':
     parser.add_argument('-gbc', '--grid-bold-color', default='#000', help='Grid bold color', type=hexcolor)
     parser.add_argument('-pp', '--pixel-padding', default=3, help='Scaling of the output image', type=float)
     parser.add_argument('--solve', action='store_true', help='Generate images which solve the puzzle')
+    parser.add_argument('--json', help='JSON output path', type=str)
     args = parser.parse_args()
     try:
         nonogram = Nonogram(args.filepath)
@@ -217,3 +222,5 @@ if __name__ == '__main__':
     nonogram.font_color = args.font_color
     nonogram._pixel_padding = args.pixel_padding
     nonogram.save(args.output, args.solve)
+    if args.json:
+        nonogram.save_json(args.json)
